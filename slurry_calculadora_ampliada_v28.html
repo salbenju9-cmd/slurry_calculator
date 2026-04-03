@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calculadora de slurry ampliada v2</title>
+<style>
+  :root{ --b:#cfcfcf; --bg:#f7f7f7; --txt:#1f1f1f; }
+  *{box-sizing:border-box}
+  body{ font-family:Arial,Helvetica,sans-serif; margin:10px; color:var(--txt); font-size:13px; line-height:1.2; background:#fff; }
+  h1{font-size:20px;margin:0 0 8px}
+  h2{font-size:14px;margin:0 0 6px}
+  .toolbar,.section{ border:1px solid var(--b); padding:8px; margin-bottom:8px; background:#fff; }
+  .toolbar{background:var(--bg)}
+  .row{ display:flex; flex-wrap:wrap; gap:6px 8px; align-items:end; }
+  .field{ display:flex; flex-direction:column; min-width:118px; flex:0 0 auto; }
+  .field.wide{min-width:330px; flex:1}
+  .field.short{width:80px; display:inline-block; margin-right:6px;min-width:100px}
+  .field.medium{min-width:150px}
+  label{ font-size:11px; color:#444; margin-bottom:2px; }
+  input,select{ height:28px; padding:3px 6px; border:1px solid #aaa; border-radius:3px; font-size:13px; width:100%; }
+  button{ height:28px; padding:0 10px; border:1px solid #888; background:#efefef; border-radius:3px; cursor:pointer; font-size:12px; }
+  button:hover{background:#e3e3e3}
+  .status{min-height:16px;font-size:12px;margin-top:5px}
+  .ok{color:#116611}.err{color:#b00020}
+  .muted{font-size:11px;color:#666}
+  .print-only{display:none}
+  svg text{font-family:Arial,Helvetica,sans-serif;}
+  .sep{width:100%; height:0}
+  @media print{
+    body{margin:8mm;font-size:10.5pt}
+    .no-print,.toolbar,.status,.muted,#screenTitle{display:none !important}
+    .print-only{display:block}
+    .section{break-inside:avoid}
+    input,select{border:none;height:auto;padding:0;background:transparent;appearance:none}
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <div class="row">
+      <div class="field wide">
+        <label for="calcTitle">Texto / tipo de cálculo</label>
+        <input id="calcTitle" type="text" placeholder="Ejemplo: Línea feldespato - impulsión a clasificación" />
+      </div>
+      <button onclick="printPDF()">Imprimir PDF</button>
+      <button onclick="exportWord()">Exportar Word</button>
+      <button onclick="clearAllData()">Limpiar todo</button>
+    </div>
+  </div>
+
+  <div class="print-only"><h1 id="printTitle">Calculadora de slurry ampliada</h1></div>
+  <h1 id="screenTitle">Calculadora de slurry ampliada</h1>
+
+  <div class="section">
+    <h2>1) Datos base y composición</h2>
+    <div class="row">
+      <div class="field short"><label for="rho_l">ρ líquido kg/m³</label><input id="rho_l" type="number" step="any" value="1000"></div>
+      <div class="field short"><label for="rho_s">ρ sólido kg/m³</label><input id="rho_s" type="number" step="any" value="2700"></div>
+      <div class="field short"><label for="wp">% sólidos peso</label><input id="wp" type="number" step="any"></div>
+      <div class="field short"><label for="vp">% sólidos volumen</label><input id="vp" type="number" step="any"></div>
+      <div class="field short"><label for="rho_m">ρ mezcla kg/m³</label><input id="rho_m" type="number" step="any"></div>
+      <button class="no-print" onclick="calcComposition()">Calcular composición</button>
+      <button class="no-print" onclick="clearSection1()">Limpiar 1</button>
+    </div>
+    <div class="status" id="statusComp"></div>
+  </div>
+
+  <div class="section">
+    <h2>2) Caudales</h2>
+    <div class="row">
+      <div class="field short"><label for="ms">kg/h sólido</label><input id="ms" type="number" step="any"></div>
+      <div class="field short"><label for="ql">m³/h agua</label><input id="ql" type="number" step="any"></div>
+      <div class="field short"><label for="qm">m³/h mezcla</label><input id="qm" type="number" step="any"></div>
+      <div class="field short"><label for="mm">kg/h mezcla</label><input id="mm" type="number" step="any"></div>
+      <div class="field short"><label for="qs">m³/h sólido</label><input id="qs" type="number" step="any"></div>
+      <button class="no-print" onclick="calcFlows()">Calcular caudales</button>
+      <button class="no-print" onclick="clearSection2()">Limpiar 2</button>
+    </div>
+    <div class="muted">Introduciendo cualquiera de los 4 principales, el programa calcula el resto con la composición ya conocida.</div>
+    <div class="status" id="statusFlows"></div>
+  </div>
+
+  <div class="section">
+    <h2>3) Tubería, pérdidas, bomba y selección orientativa</h2>
+    <div class="row">
+      <div class="field short"><label for="d">Diám. interior mm</label><input id="d" type="number" step="any"></div>
+      <div class="field short"><label for="v">Velocidad m/s</label><input id="v" type="number" step="any"></div>
+      <div class="field short"><label for="pipeMat">Material tubería</label>
+        <select id="pipeMat"><option value="PVC">PVC</option><option value="PE">Polietileno</option></select>
+      </div>
+      <div class="field short"><label for="pipeL">Longitud m</label><input id="pipeL" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="n90">Codos 90°</label><input id="n90" type="number" step="1" value="0"></div>
+      <div class="field short"><label for="zGain">Altura a ganar m</label><input id="zGain" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="zFinal">Altura final necesaria m</label><input id="zFinal" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pumpEff">Rdto. bomba %</label><input id="pumpEff" type="number" step="any" value="50"></div>
+      <div class="field short"><label for="rpmMaxSel">rpm máximas deseadas</label><input id="rpmMaxSel" type="number" step="any" value="1200"></div>
+      <button class="no-print" onclick="calcPipe()">Calcular tubería</button>
+      <button class="no-print" onclick="calcHydraulics()">Calcular pérdidas y bomba</button>
+      <button class="no-print" onclick="clearSection3()">Limpiar 3</button>
+    </div>
+    <div class="row" style="margin-top:4px">
+      <div class="field short"><label for="vmin">Velocidad mínima m/s</label><input id="vmin" type="number" step="any" readonly></div>
+      <div class="field short"><label for="hf_fric">Pérdida fricción m</label><input id="hf_fric" type="number" step="any" readonly></div>
+      <div class="field short"><label for="hf_acc">Pérdida accesorios m</label><input id="hf_acc" type="number" step="any" readonly></div>
+      <div class="field short"><label for="hf_total">Pérdida total m</label><input id="hf_total" type="number" step="any" readonly></div>
+      <div class="field short"><label for="H_total">Altura manométrica m</label><input id="H_total" type="number" step="any" readonly></div>
+      <div class="field short"><label for="P_pump">Potencia hidráulica kW</label><input id="P_pump" type="number" step="any" readonly></div>
+      <div class="field short"><label for="P_motor">Potencia motor recomendada kW</label><input id="P_motor" type="number" step="any" readonly></div>
+      <div class="field short"><label for="CQ">Factor Q slurry</label><input id="CQ" type="number" step="any" readonly></div>
+      <div class="field short"><label for="CH">Factor H slurry</label><input id="CH" type="number" step="any" readonly></div>
+      <div class="field short"><label for="Qeq">Q eq. agua m³/h</label><input id="Qeq" type="number" step="any" readonly></div>
+      <div class="field short"><label for="Heq">H eq. agua m</label><input id="Heq" type="number" step="any" readonly></div>
+      <div class="field short"><label for="Qwork">Q trabajo slurry m³/h</label><input id="Qwork" type="number" step="any" readonly></div>
+      <div class="field short"><label for="Hwork">H trabajo slurry m</label><input id="Hwork" type="number" step="any" readonly></div>
+    </div>
+    <div class="row" style="margin-top:4px">
+      <div class="field medium"><label for="pump_family">Tipo de bomba</label><input id="pump_family" type="text" readonly></div>
+      <div class="field medium"><label for="pump_size">Modelo aprox.</label><input id="pump_size" type="text" readonly></div>
+      <div class="field medium"><label for="pump_rpm">Velocidad aprox. rpm</label><input id="pump_rpm" type="text" readonly></div>
+      <div class="field medium"><label for="pump_hz">Frecuencia aprox. Hz</label><input id="pump_hz" type="text" readonly></div>
+      <div class="field medium"><label for="pump_rpm_ok">Cumple rpm máx.</label><input id="pump_rpm_ok" type="text" readonly></div>
+      <div class="field medium"><label for="pump_impeller">Diám. rodete mm</label><input id="pump_impeller" type="text" readonly></div>
+      <div class="field wide"><label for="pump_note">Observación selección</label><input id="pump_note" type="text" readonly></div>
+    </div>
+    <div class="status" id="statusPipe"></div>
+    <div class="muted">La potencia de motor recomendada aplica márgenes de slurry y servicio. La selección de bomba y rpm es una orientación preliminar, no sustituye la curva real del fabricante.</div>
+  </div>
+
+  <div class="section">
+    <h2>4) Granulometría</h2>
+    <div class="row">
+      <div class="field short"><label for="pct_gt_2000">% &gt; 2000 µm</label><input id="pct_gt_2000" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pct_gt_1000">% &gt; 1000 µm</label><input id="pct_gt_1000" type="number" step="any" value="0"></div>
+    
+      <div class="field short"><label for="pct_gt_800">% &gt; 800 µm</label><input id="pct_gt_800" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pct_gt_500">% &gt; 500 µm</label><input id="pct_gt_500" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pct_gt_350">% &gt; 350 µm</label><input id="pct_gt_350" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pct_gt_250">% &gt; 250 µm</label><input id="pct_gt_250" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pct_gt_180">% &gt; 180 µm</label><input id="pct_gt_180" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pct_gt_90">% &gt; 90 µm</label><input id="pct_gt_90" type="number" step="any" value="0"></div>
+      <div class="field short"><label for="pct_total">% total</label><input id="pct_total" type="number" step="any" value="100"></div>
+      <button class="no-print" onclick="calcPSD()">Calcular tamaño</button>
+    </div>
+    <div class="row" style="margin-top:4px">
+      <div class="field short"><label for="solid_size">Tamaño sólido medio µm</label><input id="solid_size" type="number" step="any"></div>
+      <div class="field short"><label for="d50">d50 µm</label><input id="d50" type="number" step="any" readonly></div>
+      <div class="field short"><label for="d85">d85 µm</label><input id="d85" type="number" step="any" readonly></div>
+      <div class="field medium"><label for="vminBasis">Velocidad mínima con</label>
+        <select id="vminBasis">
+          <option value="mean">Diámetro medio</option>
+          <option value="d85">P85 / d85</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <div class="field short"><label for="kg_gt_2000">&gt;2000 µm kg/h</label><input id="kg_gt_2000" type="number" step="any" readonly></div>
+      <div class="field short"><label for="kg_gt_1000">&gt;1000 µm kg/h</label><input id="kg_gt_1000" type="number" step="any" readonly></div>
+      <div class="field short"><label for="kg_gt_800">&gt;800 µm kg/h</label><input id="kg_gt_800" type="number" step="any" readonly></div>
+      <div class="field short"><label for="kg_gt_500">&gt;500 µm kg/h</label><input id="kg_gt_500" type="number" step="any" readonly></div>
+      <div class="field short"><label for="kg_gt_350">&gt;350 µm kg/h</label><input id="kg_gt_350" type="number" step="any" readonly></div>
+      <div class="field short"><label for="kg_gt_250">&gt;250 µm kg/h</label><input id="kg_gt_250" type="number" step="any" readonly></div>
+      <div class="field short"><label for="kg_gt_180">&gt;180 µm kg/h</label><input id="kg_gt_180" type="number" step="any" readonly></div>
+      <div class="field short"><label for="kg_gt_90">&gt;90 µm kg/h</label><input id="kg_gt_90" type="number" step="any" readonly></div>
+    </div>
+    <div class="status" id="statusPSD"></div>
+  </div>
+
+  <div class="section">
+    <h2>5) Curva orientativa de la bomba</h2>
+    <div class="row">
+      <div class="field wide">
+        <label>Curva orientativa de la bomba seleccionada</label>
+        <svg id="pumpCurveSvg" width="1000" height="320" viewBox="0 0 1000 320 style="border:1px solid #aaa; background:#fff; max-width:100%; height:auto"></svg>
+      </div>
+    </div>
+    <div class="muted">La velocidad mínima puede calcularse con diámetro medio o con P85 / d85, según el selector de granulometría.</div>
+  </div>
+
+<script>
+function num(id){ const v=parseFloat(document.getElementById(id).value); return isNaN(v)?NaN:v; }
+function setVal(id,val,dec=3){ if(isNaN(val)||!isFinite(val)) return; document.getElementById(id).value=Number(val).toFixed(dec); }
+function setTxt(id,txt){ document.getElementById(id).value = txt; }
+function msg(id,text,ok=true){ const el=document.getElementById(id); el.className="status "+(ok?"ok":"err"); el.textContent=text; }
+function clearMsg(id){ const el=document.getElementById(id); el.textContent=""; el.className="status"; }
+
+function currentTitle(){
+  const t=document.getElementById("calcTitle").value.trim();
+  return t ? ("Calculadora de slurry ampliada - "+t) : "Calculadora de slurry ampliada";
+}
+function syncTitles(){
+  document.getElementById("screenTitle").textContent=currentTitle();
+  document.getElementById("printTitle").textContent=currentTitle();
+}
+document.getElementById("calcTitle").addEventListener("input", syncTitles);
+
+function calcComposition(){
+  clearMsg("statusComp");
+  const rho_l=num("rho_l"), rho_s=num("rho_s");
+  let wp=num("wp"), vp=num("vp"), rho_m=num("rho_m");
+  const hasWp=!isNaN(wp), hasVp=!isNaN(vp), hasRm=!isNaN(rho_m);
+  if((hasWp?1:0)+(hasVp?1:0)+(hasRm?1:0)===0){ msg("statusComp","Introduce % sólidos peso, % sólidos volumen o densidad de mezcla.",false); return; }
+  if(!(rho_l>0) || !(rho_s>0)){ msg("statusComp","Las densidades deben ser mayores de 0.",false); return; }
+
+  if(hasWp){ wp/=100; rho_m = 1/(wp/rho_s + (1-wp)/rho_l); vp = (wp/rho_s)/(wp/rho_s + (1-wp)/rho_l); }
+  else if(hasVp){ vp/=100; rho_m = vp*rho_s + (1-vp)*rho_l; wp = (vp*rho_s)/rho_m; }
+  else { vp = (rho_m-rho_l)/(rho_s-rho_l); wp = (vp*rho_s)/rho_m; }
+
+  if(wp<0||wp>1||vp<0||vp>1||!(rho_m>0)){ msg("statusComp","Los datos no generan una mezcla física válida.",false); return; }
+  setVal("wp", wp*100, 2); setVal("vp", vp*100, 2); setVal("rho_m", rho_m, 1);
+  msg("statusComp","Composición calculada correctamente.");
+}
+
+function getComposition(){
+  const rho_l=num("rho_l"), rho_s=num("rho_s"), rho_m=num("rho_m");
+  let wp=num("wp"), vp=num("vp");
+  if(!(rho_l>0) || !(rho_s>0)) return null;
+  if(!isNaN(wp)){ wp/=100; return {rho_l,rho_s,rho_m:1/(wp/rho_s+(1-wp)/rho_l),wp,vp:(wp/rho_s)/(wp/rho_s+(1-wp)/rho_l)}; }
+  if(!isNaN(vp)){ vp/=100; const rm=vp*rho_s+(1-vp)*rho_l; return {rho_l,rho_s,rho_m:rm,wp:(vp*rho_s)/rm,vp}; }
+  if(!isNaN(rho_m)){ vp=(rho_m-rho_l)/(rho_s-rho_l); wp=(vp*rho_s)/rho_m; return {rho_l,rho_s,rho_m,wp,vp}; }
+  return null;
+}
+
+function calcFlows(){
+  clearMsg("statusFlows");
+  const c=getComposition();
+  if(!c){ msg("statusFlows","Primero hay que conocer la composición.",false); return; }
+  const {rho_l,rho_s,rho_m,wp}=c;
+  let ms=num("ms"), ql=num("ql"), qm=num("qm"), mm=num("mm");
+
+  if(!isNaN(ms)){ mm=ms/wp; qm=mm/rho_m; ql=(mm-ms)/rho_l; }
+  else if(!isNaN(ql)){ const ml=ql*rho_l; mm=ml/(1-wp); ms=mm*wp; qm=mm/rho_m; }
+  else if(!isNaN(qm)){ mm=qm*rho_m; ms=mm*wp; ql=(mm-ms)/rho_l; }
+  else if(!isNaN(mm)){ ms=mm*wp; ql=(mm-ms)/rho_l; qm=mm/rho_m; }
+  else { msg("statusFlows","Introduce uno de los 4 caudales principales.",false); return; }
+
+  const qs=ms/rho_s;
+  setVal("ms",ms,1); setVal("ql",ql,3); setVal("qm",qm,3); setVal("mm",mm,1); setVal("qs",qs,3);
+  msg("statusFlows","Caudales calculados correctamente.");
+}
+
+function calcPipe(){
+  clearMsg("statusPipe");
+  const qm=num("qm");
+  let d=num("d"), v=num("v");
+  if(!(qm>0)){ msg("statusPipe","Hace falta conocer el caudal de mezcla.",false); return; }
+  const Q=qm/3600;
+  if(d>0){
+    const D=d/1000, area=Math.PI*D*D/4; v=Q/area;
+  }else if(v>0){
+    const area=Q/v; d=Math.sqrt(4*area/Math.PI)*1000;
+  }else{
+    msg("statusPipe","Introduce diámetro o velocidad.",false); return;
+  }
+  setVal("d",d,1); setVal("v",v,2);
+  msg("statusPipe","Tubería calculada correctamente.");
+}
+
+function psdInputs(){
+  return {
+    total: num("pct_total"),
+    gt2000: num("pct_gt_2000") || 0,
+    gt1000: num("pct_gt_1000") || 0,
+    gt800: num("pct_gt_800") || 0,
+    gt500: num("pct_gt_500") || 0,
+    gt350: num("pct_gt_350") || 0,
+    gt250: num("pct_gt_250") || 0,
+    gt180: num("pct_gt_180") || 0,
+    gt90: num("pct_gt_90") || 0
+  };
+}
+
+function calcPSD(){
+  clearMsg("statusPSD");
+  const p = psdInputs();
+  const arr = [p.gt2000,p.gt1000,p.gt800,p.gt500,p.gt350,p.gt250,p.gt180,p.gt90];
+
+  if(!(p.total > 0)){ msg("statusPSD","% total debe ser mayor que 0.",false); return; }
+  for(const x of arr){
+    if(x < 0 || x > p.total){ msg("statusPSD","Hay porcentajes fuera de rango.",false); return; }
+  }
+
+  if(!(p.gt1000 >= p.gt2000 && p.gt800 >= p.gt1000 && p.gt500 >= p.gt800 &&
+       p.gt350 >= p.gt500 && p.gt250 >= p.gt350 && p.gt180 >= p.gt250 &&
+       p.gt90 >= p.gt180 && p.total >= p.gt90)){
+    msg("statusPSD","Los acumulados deben ser coherentes.",false); return;
+  }
+
+  const bins = [
+    {pct: p.gt2000,                size: 2500},
+    {pct: p.gt1000 - p.gt2000,     size: 1500},
+    {pct: p.gt800  - p.gt1000,     size: 900},
+    {pct: p.gt500  - p.gt800,      size: 650},
+    {pct: p.gt350  - p.gt500,      size: 425},
+    {pct: p.gt250  - p.gt350,      size: 300},
+    {pct: p.gt180  - p.gt250,      size: 215},
+    {pct: p.gt90   - p.gt180,      size: 135},
+    {pct: p.total  - p.gt90,       size: 45}
+  ];
+
+  let mean = 0;
+  for(const b of bins) mean += b.pct * b.size;
+  mean /= p.total;
+
+  const sizes =   [ 90, 180, 250, 350, 500, 800, 1000, 2000 ];
+  const passing = [
+    p.total - p.gt90,
+    p.total - p.gt180,
+    p.total - p.gt250,
+    p.total - p.gt350,
+    p.total - p.gt500,
+    p.total - p.gt800,
+    p.total - p.gt1000,
+    p.total - p.gt2000
+  ];
+
+  function interpDx(target){
+    if(target <= passing[0]) return sizes[0];
+    if(target >= passing[passing.length - 1]) return sizes[sizes.length - 1];
+    for(let i=0; i<sizes.length-1; i++){
+      const p1 = passing[i], p2 = passing[i+1];
+      if(target >= p1 && target <= p2){
+        const frac = (target - p1) / ((p2 - p1) || 1);
+        return sizes[i] + frac * (sizes[i+1] - sizes[i]);
+      }
+    }
+    return mean;
+  }
+
+  setVal("solid_size", mean, 0);
+  setVal("d50", interpDx(50), 0);
+  setVal("d85", interpDx(85), 0);
+
+  const ms = num("ms");
+  const ids = ["kg_gt_2000","kg_gt_1000","kg_gt_800","kg_gt_500","kg_gt_350","kg_gt_250","kg_gt_180","kg_gt_90"];
+  const vals = [p.gt2000,p.gt1000,p.gt800,p.gt500,p.gt350,p.gt250,p.gt180,p.gt90];
+  if(ms > 0){
+    for(let i=0;i<ids.length;i++) setVal(ids[i], ms * vals[i] / p.total, 1);
+    msg("statusPSD","Granulometría calculada correctamente. También se muestran los kg/h acumulados por corte.");
+  } else {
+    for(const id of ids) document.getElementById(id).value = "";
+    msg("statusPSD","Granulometría calculada correctamente. Para ver kg/h por corte, introduce antes los kg/h de sólido.");
+  }
+}
+
+function getRoughness(){ return document.getElementById("pipeMat").value==="PVC" ? 0.0015e-3 : 0.007e-3; }
+
+// Estimación práctica inicial basada en tamaño de partícula y concentración volumétrica.
+// No es una correlación exacta de fabricante.
+function getSlurryVelocityMinimum(size_um, cv){
+  const dmm=Math.max(size_um/1000,0.02);
+  let vmin = 1.2 + 0.60*Math.sqrt(dmm) + 1.20*cv;
+  if(size_um>350) vmin += 0.15;
+  if(size_um>800) vmin += 0.15;
+  return vmin;
+}
+
+function roundUpMotorPower(kW){
+  const std=[1.5,2.2,3,4,5.5,7.5,11,15,18.5,22,30,37,45,55,75,90,110,132,160,200,250,315];
+  for(const s of std){ if(kW<=s) return s; }
+  return Math.ceil(kW/50)*50;
+}
+
+function recommendPump(Qm3h,Hm,rpmMaxSel){
+  const models = [
+    {size:"2/1.5 AH", impeller:180, qMin:5,   qMax:25,  hMin:6,  hMax:45, rpmMin:1200, rpmMax:1800},
+    {size:"3/2 AH",   impeller:214, qMin:10,  qMax:60,  hMin:8,  hMax:55, rpmMin:1100, rpmMax:1700},
+    {size:"4/3 AH",   impeller:245, qMin:20,  qMax:160, hMin:5,  hMax:52, rpmMin:900,  rpmMax:1800},
+    {size:"6/4 AH",   impeller:365, qMin:60,  qMax:400, hMin:12, hMax:80, rpmMin:700,  rpmMax:1500}
+  ];
+
+  function estimateRpm(model){
+    let qRatio = (Qm3h - model.qMin) / Math.max((model.qMax - model.qMin), 1);
+    let hRatio = (Hm   - model.hMin) / Math.max((model.hMax - model.hMin), 1);
+    qRatio = Math.max(0, Math.min(1, qRatio));
+    hRatio = Math.max(0, Math.min(1, hRatio));
+    let ratio = Math.max(qRatio, hRatio * 1.10);
+    let rpm = model.rpmMin + ratio * (model.rpmMax - model.rpmMin);
+    return Math.round(rpm / 10) * 10;
+  }
+
+  let valid = [];
+  for(const m of models){
+    const rpm = estimateRpm(m);
+    const covers = (Qm3h <= m.qMax && Hm <= m.hMax);
+    const rpmOk = (!(rpmMaxSel>0) || rpm <= rpmMaxSel);
+    if(covers && rpmOk) valid.push({...m, rpm, covers, rpmOk});
+  }
+
+  let chosen = null;
+  if(valid.length){
+    chosen = valid[0];
+  } else {
+    for(const m of models){
+      const rpm = estimateRpm(m);
+      const covers = (Qm3h <= m.qMax && Hm <= m.hMax);
+      if(covers){ chosen = {...m, rpm, covers, rpmOk: (!(rpmMaxSel>0) || rpm <= rpmMaxSel)}; break; }
+    }
+    if(!chosen){
+      const m = models[models.length - 1];
+      chosen = {...m, rpm: estimateRpm(m), covers:false, rpmOk: (!(rpmMaxSel>0) || estimateRpm(m) <= rpmMaxSel)};
+    }
+  }
+
+  let note = "Selección orientativa dentro de la familia AH engomada. Confirmar con curva real del fabricante, diámetro exacto de rodete recortado y NPSH.";
+  if(!chosen.covers){
+    note = "El duty sale de la zona típica de estos tamaños. Habría que revisar curva real o ampliar a otro tamaño.";
+  } else if(chosen.covers && !chosen.rpmOk){
+    note = "La bomba cubre caudal y altura, pero supera las rpm máximas deseadas. Conviene subir de tamaño o revisar el punto real con curvas.";
+  } else if(valid.length){
+    note = "Se ha elegido el menor tamaño que cubre el duty sin superar las rpm máximas deseadas.";
+  }
+
+  return {
+    family:"Warman AH engomada, horizontal, centrífuga",
+    size:chosen.size,
+    rpm:String(chosen.rpm),
+    rpmOk: chosen.rpmOk ? "Sí" : "No",
+    impeller:String(chosen.impeller),
+    note,
+    curve: { qMin: chosen.qMin, qMax: chosen.qMax, hMin: chosen.hMin, hMax: chosen.hMax }
+  };
+}
+
+
+function rpmToHz(rpm){
+  // Aproximación para motor 4 polos con variador: 50 Hz ≈ 1475 rpm reales.
+  return rpm * 50 / 1475;
+}
+
+function calcHydraulics(){
+  clearMsg("statusPipe");
+  const c = getComposition();
+  if(!c){ msg("statusPipe","Primero hay que conocer la composición.",false); return; }
+
+  const qm = num("qm");
+  let d = num("d"), v = num("v");
+  const L = num("pipeL") || 0, n90 = num("n90") || 0, zGain = num("zGain") || 0, zFinal = num("zFinal") || 0;
+  const eff = (num("pumpEff") || 50) / 100;
+
+  if(!(qm > 0)){ msg("statusPipe","Hace falta conocer el caudal de mezcla.",false); return; }
+  if(!(d > 0) && !(v > 0)) calcPipe();
+  d = num("d"); v = num("v");
+  if(!(d > 0) || !(v > 0)){ msg("statusPipe","No se ha podido calcular diámetro/velocidad.",false); return; }
+
+  const vminBasis = document.getElementById("vminBasis") ? document.getElementById("vminBasis").value : "mean";
+  let size_um = (vminBasis === "d85") ? num("d85") : num("solid_size");
+  if(!(size_um > 0)){
+    calcPSD();
+    size_um = (vminBasis === "d85") ? num("d85") : num("solid_size");
+  }
+  if(!(size_um > 0)) size_um = 150;
+
+  const D = d / 1000, Q = qm / 3600, rho = c.rho_m, cv = c.vp;
+  const mu = 0.001 * (1 + 3.0*cv + 12*cv*cv);
+  const Re = Math.max(rho * v * D / Math.max(mu, 1e-6), 1);
+  const eps = getRoughness();
+
+  let f;
+  if(Re < 2300) f = 64 / Re;
+  else f = 0.25 / Math.pow(Math.log10(eps/(3.7*D) + 5.74/Math.pow(Re,0.9)), 2);
+
+  const solidsFactor = 1 + 2.5*cv + 0.35*Math.sqrt(size_um/1000);
+  const fSlurry = f * solidsFactor;
+
+  const hf_fric = fSlurry * (L/D) * (v*v/(2*9.81));
+  const K90 = 1.1;
+  const hf_acc = (n90*K90) * (v*v/(2*9.81));
+  const hf_total = hf_fric + hf_acc;
+  const H_total = hf_total + zGain + zFinal;
+
+  const P_hyd = rho * 9.81 * Q * H_total / 1000;
+
+  // Factores simplificados agua -> slurry
+  // Factores agua -> slurry.
+  // Muy importante: cuando el slurry es casi agua (cv≈0), las curvas deben parecerse mucho a las de agua.
+  // Por eso la penalización arranca prácticamente en 1 y sólo aumenta con concentración y gruesos.
+  const coarsePenalty = (size_um > 350 ? 0.015 : 0) + (size_um > 500 ? 0.010 : 0);
+
+  let CQ = 1 - 0.22*cv - coarsePenalty*cv*1.2;                 // caudal slurry / caudal agua
+  let CH = 1 - 0.42*cv - 0.10*Math.sqrt(size_um/1000)*cv - coarsePenalty*cv*1.8; // altura slurry / altura agua
+  let CP = 1 + 1.20*cv + (size_um > 350 ? 0.08*cv : 0);        // potencia slurry / potencia agua
+
+  // Límites para no irnos a valores absurdos en slurries muy duros, pero sin penalizar agua.
+  CQ = Math.max(0.78, Math.min(1.00, CQ));
+  CH = Math.max(0.62, Math.min(1.00, CH));
+  CP = Math.max(1.00, CP);
+
+  // Punto equivalente en agua para seleccionar bomba sobre curva en agua
+  const Qeq = qm / CQ;
+  const Heq = H_total / CH;
+
+  const P_motor_cont = (P_hyd / Math.max(eff,0.01)) * CP;
+  const P_motor_sel = roundUpMotorPower(P_motor_cont);
+  const P_motor_water_at_design = P_motor_sel / CP;
+
+  const vmin = getSlurryVelocityMinimum(size_um, cv);
+  const rpmMaxSel = num("rpmMaxSel");
+  const rec = recommendPump(Qeq, Heq, rpmMaxSel);
+  const rpmNum = parseFloat(rec.rpm);
+  const hzNum = rpmToHz(rpmNum);
+
+  // Curva de bomba en agua: H = H0 - k·Qw²
+  const H0 = rec.curve.hMax * 1.05;
+  const k = Math.max((H0 - Heq) / Math.max(Qeq*Qeq, 1e-9), 1e-9);
+
+  // Curva del sistema en slurry: H = Hstatic + bs·Qs²
+  const zStatic = zGain + zFinal;
+  const bs = Math.max((H_total - zStatic) / Math.max(qm*qm, 1e-9), 0);
+
+  // Curva de bomba en slurry: Hs(Qs) = CH·(H0 - k·(Qs/CQ)²)
+  // Punto real = intersección bomba slurry con sistema slurry
+  const denom = bs + (CH * k / Math.max(CQ*CQ, 1e-9));
+  const numer = CH * H0 - zStatic;
+  const Qs_star = Math.sqrt(Math.max(numer / Math.max(denom,1e-9), 0));
+  const Hs_star = zStatic + bs * Qs_star * Qs_star;
+
+  const Qw_star = Qs_star / CQ;
+  const Hw_star = H0 - k * Qw_star * Qw_star;
+
+  // Potencia coherente en el punto de trabajo
+  const qWmax = rec.curve.qMax;
+  const tduty = Math.max(Math.min(Qw_star / Math.max(qWmax, 1e-9), 1), 0);
+  const powerShapeAtDuty = 0.25 + 0.75*Math.pow(tduty, 1.55);
+  const P_motor_water = P_motor_water_at_design;
+  const P_motor_slurry = P_motor_water * CP;
+
+  setVal("vmin", vmin, 2); setVal("hf_fric", hf_fric, 2); setVal("hf_acc", hf_acc, 2); setVal("hf_total", hf_total, 2);
+  setVal("H_total", H_total, 2); setVal("P_pump", P_hyd, 2); setVal("P_motor", P_motor_sel, 1);
+  setVal("CQ", CQ, 2); setVal("CH", CH, 2); setVal("Qeq", Qeq, 1); setVal("Heq", Heq, 1); setVal("Qwork", Qs_star, 1); setVal("Hwork", Hs_star, 1);
+  setTxt("pump_family", rec.family); setTxt("pump_size", rec.size); setTxt("pump_rpm", rec.rpm); setVal("pump_hz", hzNum, 1);
+  setTxt("pump_rpm_ok", rec.rpmOk); setTxt("pump_impeller", rec.impeller); setTxt("pump_note", rec.note);
+
+  drawPumpCurve(
+    rec, Qs_star, Hs_star, Qw_star, Hw_star,
+    P_motor_slurry, P_motor_water, rec.rpm, hzNum.toFixed(1),
+    CQ, CH, CP, zStatic, bs, H0, k
+  );
+
+  let warn = "";
+  if(v < vmin) warn += " Velocidad por debajo de la mínima estimada.";
+  msg("statusPipe","Curvas calculadas. Si el slurry se acerca a agua, la azul debe acercarse mucho a la negra; ahora ya se corrige así." + warn, v >= vmin);
+}
+
+function drawPumpCurve(rec, dutyQ, dutyH, dutyQw, dutyHw, motorKWsl, motorKWw, rpm, hz, CQ, CH, CP, zStatic, bs, H0, k){
+  const svg = document.getElementById("pumpCurveSvg");
+  if(!svg) return;
+  const w = 1000, h = 340, ml = 70, mr = 78, mt = 24, mb = 44;
+  const pw = w - ml - mr, ph = h - mt - mb;
+
+  const qMaxAxis = Math.max(rec.curve.qMax * CQ * 1.18, dutyQ * 1.22, 10);
+  const hMaxAxis = Math.max(H0 * 1.12, dutyH * 1.25, 10);
+  const pAxisMax = Math.max(motorKWsl * 1.25, motorKWw * 1.25, 5);
+
+  function x(q){ return ml + (q / qMaxAxis) * pw; }
+  function yH(H){ return mt + ph - (H / hMaxAxis) * ph; }
+  function yP(P){ return mt + ph - (P / pAxisMax) * ph; }
+
+  let headWaterPath = "";
+  let headSlurryPath = "";
+  let systemSlurryPath = "";
+  let powerWaterPath = "";
+  let powerSlurryPath = "";
+
+  const qWmax = rec.curve.qMax;
+  const qSmax = qWmax * CQ;
+  const tduty = Math.max(Math.min(dutyQw / Math.max(qWmax,1e-9), 1), 0);
+  const dutyShape = 0.25 + 0.75*Math.pow(tduty, 1.55);
+
+  for(let i=0;i<=60;i++){
+    const t = i/60;
+    const qS = t * qSmax;
+    const qW = qS / Math.max(CQ, 1e-9);
+
+    const HW = H0 - k * qW * qW;
+    const HS = CH * HW;
+    const HsysS = zStatic + bs * qS * qS;
+
+    const shape = 0.25 + 0.75*Math.pow(t, 1.55);
+    const PW = motorKWw * shape / Math.max(dutyShape, 1e-9);
+    const PS = PW * CP;
+
+    headWaterPath += (i===0 ? "M" : "L") + x(qS).toFixed(1) + "," + yH(Math.max(HW,0)).toFixed(1) + " ";
+    headSlurryPath += (i===0 ? "M" : "L") + x(qS).toFixed(1) + "," + yH(Math.max(HS,0)).toFixed(1) + " ";
+    systemSlurryPath += (i===0 ? "M" : "L") + x(qS).toFixed(1) + "," + yH(Math.max(HsysS,0)).toFixed(1) + " ";
+    powerWaterPath += (i===0 ? "M" : "L") + x(qS).toFixed(1) + "," + yP(Math.max(PW,0)).toFixed(1) + " ";
+    powerSlurryPath += (i===0 ? "M" : "L") + x(qS).toFixed(1) + "," + yP(Math.max(PS,0)).toFixed(1) + " ";
+  }
+
+  let grid = "";
+  for(let i=0;i<=5;i++){
+    const gy = mt + i*ph/5;
+    const valH = (hMaxAxis*(1-i/5)).toFixed(0) + " m";
+    const valP = (pAxisMax*(1-i/5)).toFixed(1) + " kW";
+    grid += `<line x1="${ml}" y1="${gy}" x2="${w-mr}" y2="${gy}" stroke="#e1e1e1"/>`;
+    grid += `<text x="${ml-6}" y="${gy+4}" font-size="11" text-anchor="end">${valH}</text>`;
+    grid += `<text x="${w-mr+6}" y="${gy+4}" font-size="11" text-anchor="start">${valP}</text>`;
+  }
+  for(let i=0;i<=6;i++){
+    const gx = ml + i*pw/6;
+    const val = (qMaxAxis*i/6).toFixed(0) + " m³/h";
+    grid += `<line x1="${gx}" y1="${mt}" x2="${gx}" y2="${h-mb}" stroke="#efefef"/>`;
+    grid += `<text x="${gx}" y="${h-mb+18}" font-size="11" text-anchor="middle">${val}</text>`;
+  }
+
+  const dutyHeadY = yH(dutyH);
+  const dutyPowerY = yP(motorKWsl);
+
+  svg.innerHTML = `
+    <rect x="0" y="0" width="${w}" height="${h}" fill="white"/>
+    ${grid}
+    <line x1="${ml}" y1="${mt}" x2="${ml}" y2="${h-mb}" stroke="#000"/>
+    <line x1="${w-mr}" y1="${mt}" x2="${w-mr}" y2="${h-mb}" stroke="#000"/>
+    <line x1="${ml}" y1="${h-mb}" x2="${w-mr}" y2="${h-mb}" stroke="#000"/>
+
+    <path d="${headWaterPath}" fill="none" stroke="#111" stroke-width="2.2"/>
+    <path d="${headSlurryPath}" fill="none" stroke="#1565c0" stroke-width="2.6" stroke-dasharray="7,4"/>
+    <path d="${systemSlurryPath}" fill="none" stroke="#b00020" stroke-width="2.4" stroke-dasharray="3,3"/>
+
+    <path d="${powerWaterPath}" fill="none" stroke="#7fbf90" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.75"/>
+    <path d="${powerSlurryPath}" fill="none" stroke="#d97706" stroke-width="1.8" stroke-dasharray="2,4" opacity="0.85"/>
+
+    <circle cx="${x(dutyQ)}" cy="${dutyHeadY}" r="5.5" fill="#b00020"/>
+    <circle cx="${x(dutyQ)}" cy="${dutyPowerY}" r="5" fill="#d97706"/>
+
+    <text x="${x(dutyQ)+8}" y="${dutyHeadY-8}" font-size="11">Trabajo slurry: Q=${dutyQ.toFixed(1)} m³/h, H=${dutyH.toFixed(1)} m</text>
+    <text x="${x(dutyQ)+8}" y="${dutyPowerY+14}" font-size="11">P motor=${motorKWsl.toFixed(1)} kW</text>
+
+    <text x="16" y="${h/2}" font-size="12" text-anchor="middle" transform="rotate(-90 16 ${h/2})">Altura</text>
+    <text x="${w-10}" y="${h/2}" font-size="12" text-anchor="middle" transform="rotate(90 ${w-10} ${h/2})">Potencia</text>
+    <text x="${w/2}" y="15" font-size="12" text-anchor="middle">Curvas Q-H y potencia | ${rec.size} | ${rpm} rpm | ${hz} Hz</text>
+
+    <line x1="${ml+10}" y1="${mt+12}" x2="${ml+44}" y2="${mt+12}" stroke="#111" stroke-width="2.2"/><text x="${ml+50}" y="${mt+16}" font-size="11">Bomba agua</text>
+    <line x1="${ml+130}" y1="${mt+12}" x2="${ml+164}" y2="${mt+12}" stroke="#1565c0" stroke-width="2.6" stroke-dasharray="7,4"/><text x="${ml+170}" y="${mt+16}" font-size="11">Bomba slurry</text>
+    <line x1="${ml+255}" y1="${mt+12}" x2="${ml+289}" y2="${mt+12}" stroke="#b00020" stroke-width="2.4" stroke-dasharray="3,3"/><text x="${ml+295}" y="${mt+16}" font-size="11">Sistema</text>
+    <line x1="${ml+360}" y1="${mt+12}" x2="${ml+394}" y2="${mt+12}" stroke="#7fbf90" stroke-width="1.5" stroke-dasharray="6,4"/><text x="${ml+400}" y="${mt+16}" font-size="11">Pot. agua</text>
+    <line x1="${ml+490}" y1="${mt+12}" x2="${ml+524}" y2="${mt+12}" stroke="#d97706" stroke-width="1.8" stroke-dasharray="2,4"/><text x="${ml+530}" y="${mt+16}" font-size="11">Pot. slurry</text>
+  `;
+}
+
+function clearSection1(){
+  ["wp","vp","rho_m"].forEach(id=>document.getElementById(id).value="");
+  clearMsg("statusComp");
+}
+function clearSection2(){
+  ["ms","ql","qm","mm","qs"].forEach(id=>document.getElementById(id).value="");
+  clearMsg("statusFlows");
+}
+function clearSection3(){
+  ["d","v","vmin","hf_fric","hf_acc","hf_total","H_total","P_pump","P_motor","CQ","CH","Qeq","Heq","Qwork","Hwork","pump_family","pump_size","pump_rpm","pump_hz","pump_rpm_ok","pump_impeller","pump_note"].forEach(id=>document.getElementById(id).value="");
+  clearMsg("statusPipe");
+  const svg=document.getElementById("pumpCurveSvg"); if(svg) svg.innerHTML="";
+}
+function clearAllData(){
+  document.querySelectorAll('input').forEach(el=>{
+    if(el.id==="rho_l") el.value="1000";
+    else if(el.id==="rho_s") el.value="2700";
+    else if(el.id==="pct_total") el.value="100";
+    else if(["pipeL","n90","zGain","zFinal"].includes(el.id)) el.value="0";
+    else if(el.id==="pumpEff") el.value="50";
+    else if(el.id==="rpmMaxSel") el.value="1200";
+    else el.value="";
+  });
+  document.getElementById("pipeMat").value="PVC";
+  const vsel = document.getElementById("vminBasis"); if(vsel) vsel.value = "mean";
+  ["kg_gt_2000","kg_gt_1000","kg_gt_800","kg_gt_500","kg_gt_350","kg_gt_250","kg_gt_180","kg_gt_90"].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.value = "";
+  });
+  ["statusComp","statusFlows","statusPipe","statusPSD"].forEach(clearMsg);
+  syncTitles();
+}
+function printPDF(){ syncTitles(); window.print(); }
+function exportWord(){
+  syncTitles();
+  const title=currentTitle();
+  const clone = document.body.cloneNode(true);
+  clone.querySelectorAll('.no-print,.toolbar,.status,.muted,.print-only,button').forEach(el=>el.remove());
+  const screenTitle = clone.querySelector('#screenTitle');
+  if(screenTitle) screenTitle.textContent = title;
+  clone.querySelectorAll('input').forEach(inp=>{
+    const span = document.createElement('span');
+    span.textContent = inp.value;
+    span.style.display = 'inline-block';
+    span.style.minWidth = '60px';
+    span.style.padding = '2px 4px';
+    span.style.border = '1px solid #ddd';
+    inp.replaceWith(span);
+  });
+  clone.querySelectorAll('select').forEach(sel=>{
+    const span = document.createElement('span');
+    span.textContent = sel.value;
+    span.style.display = 'inline-block';
+    span.style.minWidth = '60px';
+    span.style.padding = '2px 4px';
+    span.style.border = '1px solid #ddd';
+    sel.replaceWith(span);
+  });
+
+  const htmlDoc = `<html xmlns:o='urn:schemas-microsoft-com:office:office'
+    xmlns:w='urn:schemas-microsoft-com:office:word'
+    xmlns='http://www.w3.org/TR/REC-html40'>
+    <head><meta charset="utf-8"><title>${title}</title>
+    <style>
+      body{font-family:Arial,Helvetica,sans-serif;font-size:11pt;margin:12mm}
+      h1{font-size:18pt;margin:0 0 8pt 0}
+      h2{font-size:12pt;margin:0 0 6pt 0}
+      .section{border:1px solid #cfcfcf;padding:8px;margin-bottom:8px}
+      .row{display:block}
+      .field{display:inline-block;vertical-align:top;min-width:120px;margin:0 8px 6px 0}
+      label{display:block;font-size:9pt;color:#444;margin-bottom:2px}
+      svg{max-width:100%}
+    </style></head><body>${clone.innerHTML}</body></html>`;
+  const blob=new Blob(['\ufeff',htmlDoc],{type:'application/msword'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=(title.replace(/[^\w\d\-]+/g,'_')||'calculo_slurry')+'.doc';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+syncTitles();
+</script>
+</body>
+</html>
