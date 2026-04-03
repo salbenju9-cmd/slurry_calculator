@@ -163,6 +163,16 @@
       <div class="field short"><label for="kg_gt_180">&gt;180 µm kg/h</label><input id="kg_gt_180" type="number" step="any" readonly></div>
       <div class="field short"><label for="kg_gt_90">&gt;90 µm kg/h</label><input id="kg_gt_90" type="number" step="any" readonly></div>
     </div>
+    <div class="row" style="margin-top:6px">
+      <div class="field short"><label for="t_lt_2000">&lt;2000 µm t/h</label><input id="t_lt_2000" type="number" step="any" readonly></div>
+      <div class="field short"><label for="t_lt_1000">&lt;1000 µm t/h</label><input id="t_lt_1000" type="number" step="any" readonly></div>
+      <div class="field short"><label for="t_lt_800">&lt;800 µm t/h</label><input id="t_lt_800" type="number" step="any" readonly></div>
+      <div class="field short"><label for="t_lt_500">&lt;500 µm t/h</label><input id="t_lt_500" type="number" step="any" readonly></div>
+      <div class="field short"><label for="t_lt_350">&lt;350 µm t/h</label><input id="t_lt_350" type="number" step="any" readonly></div>
+      <div class="field short"><label for="t_lt_250">&lt;250 µm t/h</label><input id="t_lt_250" type="number" step="any" readonly></div>
+      <div class="field short"><label for="t_lt_180">&lt;180 µm t/h</label><input id="t_lt_180" type="number" step="any" readonly></div>
+      <div class="field short"><label for="t_lt_90">&lt;90 µm t/h</label><input id="t_lt_90" type="number" step="any" readonly></div>
+    </div>
     <div class="status" id="statusPSD"></div>
   </div>
 
@@ -334,12 +344,26 @@ function calcPSD(){
   const ms = num("ms");
   const ids = ["kg_gt_2000","kg_gt_1000","kg_gt_800","kg_gt_500","kg_gt_350","kg_gt_250","kg_gt_180","kg_gt_90"];
   const vals = [p.gt2000,p.gt1000,p.gt800,p.gt500,p.gt350,p.gt250,p.gt180,p.gt90];
+  const idsLt = ["t_lt_2000","t_lt_1000","t_lt_800","t_lt_500","t_lt_350","t_lt_250","t_lt_180","t_lt_90"];
+  const valsLt = [
+    p.total - p.gt2000,
+    p.total - p.gt1000,
+    p.total - p.gt800,
+    p.total - p.gt500,
+    p.total - p.gt350,
+    p.total - p.gt250,
+    p.total - p.gt180,
+    p.total - p.gt90
+  ];
+
   if(ms > 0){
     for(let i=0;i<ids.length;i++) setVal(ids[i], ms * vals[i] / p.total, 1);
-    msg("statusPSD","Granulometría calculada correctamente. También se muestran los kg/h acumulados por corte.");
+    for(let i=0;i<idsLt.length;i++) setVal(idsLt[i], (ms * valsLt[i] / p.total) / 1000, 3);
+    msg("statusPSD","Granulometría calculada correctamente. Se muestran los kg/h mayores que cada corte y las t/h menores que cada corte.");
   } else {
     for(const id of ids) document.getElementById(id).value = "";
-    msg("statusPSD","Granulometría calculada correctamente. Para ver kg/h por corte, introduce antes los kg/h de sólido.");
+    for(const id of idsLt) document.getElementById(id).value = "";
+    msg("statusPSD","Granulometría calculada correctamente. Para ver caudales por corte, introduce antes los kg/h de sólido.");
   }
 }
 
@@ -663,7 +687,7 @@ function clearAllData(){
   });
   document.getElementById("pipeMat").value="PVC";
   const vsel = document.getElementById("vminBasis"); if(vsel) vsel.value = "mean";
-  ["kg_gt_2000","kg_gt_1000","kg_gt_800","kg_gt_500","kg_gt_350","kg_gt_250","kg_gt_180","kg_gt_90"].forEach(id=>{
+  ["kg_gt_2000","kg_gt_1000","kg_gt_800","kg_gt_500","kg_gt_350","kg_gt_250","kg_gt_180","kg_gt_90","t_lt_2000","t_lt_1000","t_lt_800","t_lt_500","t_lt_350","t_lt_250","t_lt_180","t_lt_90"].forEach(id=>{
     const el = document.getElementById(id); if(el) el.value = "";
   });
   ["statusComp","statusFlows","statusPipe","statusPSD"].forEach(clearMsg);
