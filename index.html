@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Calculadora de slurry ampliada v40</title>
+<title>Calculadora de slurry ampliada v43</title>
 <style>
   :root{ --b:#cfcfcf; --bg:#f7f7f7; --txt:#1f1f1f; }
   *{box-sizing:border-box}
@@ -96,7 +96,7 @@
       <div class="field short"><label for="d">Diám. interior mm</label><input id="d" type="number" step="any"></div>
       <div class="field short"><label for="v">Velocidad m/s</label><input id="v" type="number" step="any"></div>
       <div class="field short"><label for="pipeMat">Material tubería</label>
-        <select id="pipeMat"><option value="PVC">PVC</option><option value="PE">Polietileno</option></select>
+        <select id="pipeMat"><option value="PVC">PVC</option><option value="PE">Polietileno</option><option value="CS">Acero al carbono</option></select>
       </div>
       <div class="field short"><label for="pipeL">Longitud m</label><input id="pipeL" type="number" step="any" value="0"></div>
       <div class="field short"><label for="n90">Codos 90°</label><input id="n90" type="number" step="1" value="0"></div>
@@ -491,7 +491,13 @@ function calcPSD(){
   }
 }
 
-function getRoughness(){ return document.getElementById("pipeMat").value==="PVC" ? 0.0015e-3 : 0.007e-3; }
+function getRoughness(){
+  const mat = document.getElementById("pipeMat").value;
+  if(mat==="PVC") return 0.0015e-3;     // 0,0015 mm
+  if(mat==="PE")  return 0.007e-3;      // 0,007 mm
+  if(mat==="CS")  return 0.045e-3;      // 0,045 mm acero al carbono comercial
+  return 0.007e-3;
+}
 
 // Estimación práctica de velocidad mínima de transporte.
 // Sigue siendo orientativa y no sustituye una correlación específica del slurry real.
