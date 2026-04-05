@@ -3,45 +3,160 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Calculadora de slurry ampliada v43</title>
+<title>Calculadora de slurry ampliada v45</title>
 <style>
-  :root{ --b:#cfcfcf; --bg:#f7f7f7; --txt:#1f1f1f; }
+  :root{
+    --border:#c7d2e3;
+    --text:#1f2937;
+    --page1:#f5f8fc;
+    --page2:#eef4fb;
+    --toolbar:#dde9f7;
+    --toolbar-border:#b9cde6;
+    --input-bg:#e9f2ff;
+    --input-border:#b7cef3;
+    --gran-bg:#ecf9ef;
+    --gran-border:#bfe3c4;
+    --result-bg:#f3f4f6;
+    --result-border:#d1d5db;
+    --curve-bg:#fff7e6;
+    --curve-border:#ead3a5;
+    --readonly:#eef2f7;
+    --readonly-border:#9fb6cf;
+    --readonly-text:#143a60;
+    --btn:#2f6fb4;
+    --btn-hover:#255a93;
+    --btn-text:#ffffff;
+    --muted:#5f6b7a;
+    --invalid-bg:#fff0f0;
+    --invalid-border:#d44c4c;
+  }
   *{box-sizing:border-box}
-  body{ font-family:Arial,Helvetica,sans-serif; margin:10px; color:var(--txt); font-size:13px; line-height:1.2; background:#fff; }
-  h1{font-size:20px;margin:0 0 8px}
-  h2{font-size:14px;margin:0 0 6px}
-  .toolbar,.section{ border:1px solid var(--b); padding:8px; margin-bottom:8px; background:#fff; }
-  .toolbar{background:var(--bg)}
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:14px;
+    color:var(--text);
+    font-size:13px;
+    line-height:1.25;
+    background:linear-gradient(180deg,var(--page1),var(--page2));
+  }
+  h1{
+    font-size:22px;
+    margin:0 0 10px;
+    color:#18324d;
+    letter-spacing:.2px;
+  }
+  h2{
+    font-size:15px;
+    margin:0 0 8px;
+    color:#17385c;
+  }
+  .toolbar,.section{
+    border:1px solid var(--border);
+    padding:10px;
+    margin-bottom:10px;
+    background:#fff;
+    border-radius:12px;
+    box-shadow:0 2px 8px rgba(18,48,85,.05);
+  }
+  .toolbar{
+    background:linear-gradient(180deg,#edf5ff,#dfeefe);
+    border-color:var(--toolbar-border);
+  }
+  .sec-input{
+    background:linear-gradient(180deg,#f7fbff,#ebf4ff);
+    border-color:var(--input-border);
+  }
+  .sec-gran{
+    background:linear-gradient(180deg,#f8fff9,#ecf9ef);
+    border-color:var(--gran-border);
+  }
+  .sec-result{
+    background:linear-gradient(180deg,#ffffff,#f7f9fc);
+    border-color:var(--result-border);
+  }
+  .sec-curve{
+    background:linear-gradient(180deg,#fffdf7,#fff5df);
+    border-color:var(--curve-border);
+  }
   .row{ display:flex; flex-wrap:wrap; gap:6px 8px; align-items:end; }
   .field{ display:flex; flex-direction:column; min-width:82px; flex:0 0 auto; }
   .field.wide{min-width:330px; flex:1}
-  .field.short{width:64px; display:inline-block; margin-right:4px;min-width:64px}
+  .field.short{width:64px; display:inline-block; margin-right:4px; min-width:64px}
   .field.medium{min-width:120px}
-  label{ font-size:11px; color:#444; margin-bottom:2px; }
-  input,select{ height:28px; padding:3px 4px; border:1px solid #aaa; border-radius:3px; font-size:12px; width:100%; }
-  input[readonly]{background:#eef4fb; border-color:#7ea6cf; color:#123a63; font-weight:600;}
+  label{ font-size:11px; color:#425466; margin-bottom:3px; font-weight:600; }
+  input,select{
+    height:30px;
+    padding:4px 6px;
+    border:1px solid #aebfd6;
+    border-radius:6px;
+    font-size:12px;
+    width:100%;
+    background:#fff;
+  }
+  input:focus,select:focus{
+    outline:none;
+    border-color:#4d86c6;
+    box-shadow:0 0 0 2px rgba(77,134,198,.15);
+  }
+  input[readonly]{
+    background:var(--readonly);
+    border-color:var(--readonly-border);
+    color:var(--readonly-text);
+    font-weight:700;
+  }
   input:disabled{background:#f2f2f2; color:#777;}
-  .invalid{background:#fff2f2 !important; border-color:#d04a4a !important;}
-  .warnbox{margin-top:6px; padding:6px 8px; border:1px solid #d8c58f; background:#fff8df; font-size:11px; border-radius:4px;}
-  .grid-outputs{display:grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap:6px 8px; align-items:end;}
-  button{ height:28px; padding:0 8px; border:1px solid #888; background:#efefef; border-radius:3px; cursor:pointer; font-size:12px; }
-  button:hover{background:#e3e3e3}
-  .status{min-height:16px;font-size:12px;margin-top:5px}
-  .ok{color:#116611}.err{color:#b00020}
-  .muted{font-size:11px;color:#666}
+  .invalid{background:var(--invalid-bg) !important; border-color:var(--invalid-border) !important;}
+  .warnbox{
+    margin-top:8px;
+    padding:8px 10px;
+    border:1px solid #e2c783;
+    background:linear-gradient(180deg,#fff9e9,#fff3cb);
+    font-size:11px;
+    border-radius:8px;
+    color:#604600;
+  }
+  .grid-outputs{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+    gap:6px 8px;
+    align-items:end;
+  }
+  button{
+    height:30px;
+    padding:0 10px;
+    border:1px solid #255a93;
+    background:linear-gradient(180deg,var(--btn),var(--btn-hover));
+    color:var(--btn-text);
+    border-radius:7px;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:700;
+    box-shadow:0 1px 2px rgba(0,0,0,.08);
+  }
+  button:hover{filter:brightness(1.04)}
+  .status{min-height:18px;font-size:12px;margin-top:6px;font-weight:700}
+  .ok{color:#136d2b}
+  .err{color:#b00020}
+  .muted{font-size:11px;color:var(--muted)}
   .print-only{display:none}
   svg text{font-family:Arial,Helvetica,sans-serif;}
   .sep{width:100%; height:0}
-  .sieve-box{border:1px solid #ddd; padding:4px; border-radius:4px; background:#fafafa}
-  .sieve-toggle{display:flex; align-items:center; gap:4px; margin-bottom:3px; font-size:11px}
+  .sieve-box{
+    border:1px solid #c7dfcb;
+    padding:5px;
+    border-radius:8px;
+    background:rgba(255,255,255,.72);
+  }
+  .sieve-toggle{display:flex; align-items:center; gap:4px; margin-bottom:4px; font-size:11px}
   .sieve-toggle input{width:auto; height:auto; margin:0}
   .field.short input[type="checkbox"]{width:auto}
   @media print{
-    body{margin:8mm;font-size:10.5pt}
+    body{margin:8mm;font-size:10.5pt;background:#fff;padding:0}
     .no-print,.toolbar,.status,.muted,#screenTitle{display:none !important}
     .print-only{display:block}
-    .section{break-inside:avoid}
-    input,select{border:none;height:auto;padding:0;background:transparent;appearance:none}
+    .section{break-inside:avoid; box-shadow:none; border-radius:0}
+    input,select{border:none;height:auto;padding:0;background:transparent;appearance:none;box-shadow:none}
   }
 </style>
 </head>
@@ -61,7 +176,7 @@
   <div class="print-only"><h1 id="printTitle">Calculadora de slurry ampliada</h1></div>
   <h1 id="screenTitle">Calculadora de slurry ampliada</h1>
 
-  <div class="section">
+  <div class="section sec-input">
     <h2>1) Datos base y composición</h2>
     <div class="row">
       <div class="field short"><label for="rho_l">ρ líquido kg/m³</label><input id="rho_l" type="number" step="any" value="1000"></div>
@@ -75,7 +190,7 @@
     <div class="status" id="statusComp"></div>
   </div>
 
-  <div class="section">
+  <div class="section sec-input">
     <h2>2) Caudales</h2>
     <div class="row">
       <div class="field short"><label for="ms">kg/h sólido</label><input id="ms" type="number" step="any"></div>
@@ -90,7 +205,7 @@
     <div class="status" id="statusFlows"></div>
   </div>
 
-  <div class="section">
+  <div class="section sec-result">
     <h2>3) Tubería, pérdidas, bomba y selección orientativa</h2>
     <div class="row">
       <div class="field short"><label for="d">Diám. interior mm</label><input id="d" type="number" step="any"></div>
@@ -157,7 +272,7 @@
     <div class="muted">Versión mejorada: viscosidad tipo Thomas, penalización adicional por slurry dependiente de velocidad mínima, validación en tiempo real y selección más coherente con leyes de afinidad en lugar de una interpolación lineal simple.</div>
   </div>
 
-  <div class="section">
+  <div class="section sec-gran">
     <h2>4) Granulometría</h2>
     <div class="row">
       <div class="field short sieve-box"><div class="sieve-toggle"><input id="use_2000" type="checkbox" checked onchange="toggleSieve(2000)"><label for="use_2000">Usar 2000</label></div><label for="pct_gt_2000">% retenido tamiz 2000 µm</label><input id="pct_gt_2000" type="number" step="any" value="0"></div>
@@ -213,15 +328,15 @@
     <div class="muted">Puedes anular los tamices que no uses desmarcándolos. Por defecto salen todos seleccionados. El programa sigue calculando los acumulados &gt; y &lt; con los tamices activos. Para calcular el tamaño, la suma introducida debe dar exactamente 100 %.</div>
   </div>
 
-  <div class="section">
+  <div class="section sec-curve">
     <h2>5) Curva orientativa de la bomba</h2>
     <div class="row">
       <div class="field wide">
         <label>Curva orientativa de la bomba seleccionada</label>
-        <svg id="pumpCurveSvg" width="2100" height="460" viewBox="0 0 2100 460" style="border:1px solid #aaa; background:#fff; max-width:100%; height:auto"></svg>
+        <svg id="pumpCurveSvg" width="2600" height="500" viewBox="0 0 2600 500" style="border:1px solid #d7b86e; background:#fffdf8; max-width:100%; height:auto; border-radius:10px"></svg>
       </div>
     </div>
-    <div class="muted">La velocidad mínima puede calcularse con diámetro medio o con P85 / d85, según el selector de granulometría. La curva dibujada es sintética y orientativa; no es una curva real de fabricante.</div>
+    <div class="muted">La velocidad mínima puede calcularse con diámetro medio o con P85 / d85, según el selector de granulometría. La curva dibujada es sintética y orientativa; no es una curva real de fabricante. Se muestra solo como apoyo visual para el punto de trabajo.</div>
   </div>
 
 <script>
